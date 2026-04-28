@@ -1219,6 +1219,13 @@ body {
   margin-top: 15px;
 }
 
+.shadow-intro {
+  color: #ccc;
+  font-size: 0.9rem;
+  margin-bottom: 15px;
+  line-height: 1.5;
+}
+
 .shadow-box {
   padding: 20px;
   background: rgba(255, 255, 255, 0.05);
