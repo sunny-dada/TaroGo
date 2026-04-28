@@ -1477,10 +1477,7 @@ body {
 }
 
 .personality-list li:before {
-  content: '• ';
-  color: var(--primary-color);
-  font-weight: bold;
-  margin-right: 8px;
+  content: none;
 }
 
 /* 실생활 */
