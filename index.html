@@ -194,17 +194,18 @@
     <section id="peopleCompatibility" class="people-compatibility-section" style="display: none;">
       <div class="compatibility-header">
         <h2>💕 사람들 간 궁합</h2>
-        <p class="section-description">궁합을 확인할 두 사람을 선택하세요</p>
+        <p class="section-description">기준이 되는 사람을 선택하고, 비교할 상대를 골라주세요</p>
       </div>
 
       <div class="compat-selector">
         <select id="compatPerson1" class="compat-select">
-          <option value="">첫 번째 사람</option>
+          <option value="">기준이 되는 사람</option>
         </select>
-        <span class="compat-vs">VS</span>
-        <select id="compatPerson2" class="compat-select">
-          <option value="">두 번째 사람</option>
-        </select>
+      </div>
+
+      <div id="compatTargets" class="compat-targets"></div>
+
+      <div class="compat-selector" style="justify-content: center;">
         <button id="checkCompatBtn" class="btn-check-compat">궁합 보기</button>
       </div>
 

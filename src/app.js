@@ -62,7 +62,7 @@ const clearAllPeopleBtn = document.getElementById('clearAllPeople');
 const peopleCompatibilitySection = document.getElementById('peopleCompatibility');
 const compatibilityList = document.getElementById('compatibilityList');
 const compatPerson1Select = document.getElementById('compatPerson1');
-const compatPerson2Select = document.getElementById('compatPerson2');
+const compatTargetsDiv = document.getElementById('compatTargets');
 const checkCompatBtn = document.getElementById('checkCompatBtn');
 
 // 현재 계산 결과 저장
@@ -74,6 +74,7 @@ calculateBtn.addEventListener('click', handleCalculate);
 savePersonBtn.addEventListener('click', handleSavePerson);
 clearAllPeopleBtn.addEventListener('click', handleClearAllPeople);
 checkCompatBtn.addEventListener('click', handleCheckCompatibility);
+compatPerson1Select.addEventListener('change', renderCompatTargets);
 
 // 생년월일 숫자 입력 시 자동 하이픈 포맷팅
 birthdateInput.addEventListener('input', (e) => {
@@ -673,92 +674,128 @@ function refreshPeopleCompatibility() {
 
   // 현재 선택값 보존
   const prev1 = compatPerson1Select.value;
-  const prev2 = compatPerson2Select.value;
 
-  // 드롭다운 옵션 갱신
+  // 기준 사람 드롭다운 옵션 갱신
   const optionsHtml = people.map(p =>
     `<option value="${p.id}">${p.name} (${p.universalCard}번)</option>`
   ).join('');
 
-  compatPerson1Select.innerHTML = '<option value="">첫 번째 사람</option>' + optionsHtml;
-  compatPerson2Select.innerHTML = '<option value="">두 번째 사람</option>' + optionsHtml;
+  compatPerson1Select.innerHTML = '<option value="">기준이 되는 사람</option>' + optionsHtml;
 
   // 이전 선택값 복원 (아직 존재하면)
   if (people.find(p => p.id === prev1)) compatPerson1Select.value = prev1;
-  if (people.find(p => p.id === prev2)) compatPerson2Select.value = prev2;
+
+  // 체크박스 목록 갱신
+  renderCompatTargets();
 
   // 결과 영역 비우기 (선택이 무효화됐을 수 있으므로)
   compatibilityList.innerHTML = '';
 }
 
+// 비교 대상 체크박스 목록 렌더링
+function renderCompatTargets() {
+  const basePersonId = compatPerson1Select.value;
+  const people = loadPeople();
+
+  if (!basePersonId) {
+    compatTargetsDiv.innerHTML = '<p class="compat-targets-hint">먼저 기준이 되는 사람을 선택하세요</p>';
+    compatibilityList.innerHTML = '';
+    return;
+  }
+
+  const targets = people.filter(p => p.id !== basePersonId);
+
+  if (targets.length === 0) {
+    compatTargetsDiv.innerHTML = '<p class="compat-targets-hint">비교할 다른 사람이 없습니다</p>';
+    return;
+  }
+
+  compatTargetsDiv.innerHTML = targets.map(p => `
+    <label class="compat-target-label">
+      <input type="checkbox" class="compat-target-checkbox" value="${p.id}">
+      <span class="compat-target-name">${p.name} (${p.universalCard}번)</span>
+    </label>
+  `).join('');
+
+  compatibilityList.innerHTML = '';
+}
+
 // 궁합 보기 핸들러
 async function handleCheckCompatibility() {
-  const personId1 = compatPerson1Select.value;
-  const personId2 = compatPerson2Select.value;
+  const basePersonId = compatPerson1Select.value;
 
-  if (!personId1 || !personId2) {
-    await showModal('두 사람을 모두 선택해주세요.');
+  if (!basePersonId) {
+    await showModal('기준이 되는 사람을 선택해주세요.');
     return;
   }
 
-  if (personId1 === personId2) {
-    await showModal('서로 다른 사람을 선택해주세요.');
+  const checkedBoxes = compatTargetsDiv.querySelectorAll('.compat-target-checkbox:checked');
+  const targetIds = Array.from(checkedBoxes).map(cb => cb.value);
+
+  if (targetIds.length === 0) {
+    await showModal('비교할 상대를 1명 이상 선택해주세요.');
     return;
   }
 
-  const person1 = getPerson(personId1);
-  const person2 = getPerson(personId2);
-  const compat = analyzePeopleCompatibility(person1, person2);
+  const basePerson = getPerson(basePersonId);
 
   // GA4 이벤트 트래킹
   if (typeof gtag === 'function') {
-    gtag('event', 'check_compatibility', { event_category: 'engagement' });
+    gtag('event', 'check_compatibility', {
+      event_category: 'engagement',
+      target_count: targetIds.length
+    });
   }
 
-  const compatHtml = `
-    <div class="compatibility-card">
-      <div class="compatibility-people">
-        <div class="compat-person">
-          <div class="compat-person-name">
-            <span class="compat-person-color-dot" style="background: ${compat.person1.color}"></span>
-            ${compat.person1.name}
-          </div>
-          <div class="compat-person-card">${compat.person1.cardNumber}. ${compat.person1.card}</div>
-        </div>
+  const resultsHtml = targetIds.map(targetId => {
+    const targetPerson = getPerson(targetId);
+    const compat = analyzePeopleCompatibility(basePerson, targetPerson);
 
-        <div class="compat-heart">💕</div>
-
-        <div class="compat-person">
-          <div class="compat-person-name">
-            <span class="compat-person-color-dot" style="background: ${compat.person2.color}"></span>
-            ${compat.person2.name}
-          </div>
-          <div class="compat-person-card">${compat.person2.cardNumber}. ${compat.person2.card}</div>
-        </div>
-      </div>
-
-      <div class="compatibility-grade">
-        <div class="grade-badge grade-${compat.grade}">${compat.grade}</div>
-        <div class="grade-text">${compat.gradeText}</div>
-      </div>
-
-      <div class="compatibility-advice">
-        <p>${compat.advice}</p>
-      </div>
-
-      <div class="compatibility-insights">
-        ${compat.insights.map(insight => `
-          <div class="insight-item">
-            <div class="insight-icon">${insight.icon}</div>
-            <div class="insight-content">
-              <div class="insight-title">${insight.title}</div>
-              <div class="insight-text">${insight.text}</div>
+    return `
+      <div class="compatibility-card">
+        <div class="compatibility-people">
+          <div class="compat-person">
+            <div class="compat-person-name">
+              <span class="compat-person-color-dot" style="background: ${compat.person1.color}"></span>
+              ${compat.person1.name}
             </div>
+            <div class="compat-person-card">${compat.person1.cardNumber}. ${compat.person1.card}</div>
           </div>
-        `).join('')}
-      </div>
-    </div>
-  `;
 
-  compatibilityList.innerHTML = compatHtml;
+          <div class="compat-heart">💕</div>
+
+          <div class="compat-person">
+            <div class="compat-person-name">
+              <span class="compat-person-color-dot" style="background: ${compat.person2.color}"></span>
+              ${compat.person2.name}
+            </div>
+            <div class="compat-person-card">${compat.person2.cardNumber}. ${compat.person2.card}</div>
+          </div>
+        </div>
+
+        <div class="compatibility-grade">
+          <div class="grade-badge grade-${compat.grade}">${compat.grade}</div>
+          <div class="grade-text">${compat.gradeText}</div>
+        </div>
+
+        <div class="compatibility-advice">
+          <p>${compat.advice}</p>
+        </div>
+
+        <div class="compatibility-insights">
+          ${compat.insights.map(insight => `
+            <div class="insight-item">
+              <div class="insight-icon">${insight.icon}</div>
+              <div class="insight-content">
+                <div class="insight-title">${insight.title}</div>
+                <div class="insight-text">${insight.text}</div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  compatibilityList.innerHTML = resultsHtml;
 }
